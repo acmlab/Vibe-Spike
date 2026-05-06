@@ -1,161 +1,183 @@
-# Downloading the REVE Dataset
+# Vibe-Spike
 
-This repository provides a helper script for downloading the REVE EEG dataset from Hugging Face:
+Vibe-Spike is an EEG foundation-model pretraining codebase built around time-frequency masked reconstruction and a biologically inspired neural coherence encoder. The repository includes utilities for downloading the open REVE EEG dataset subset from Hugging Face, building REVE-style dataloaders, and launching masked pretraining.
 
-- Dataset page: `https://huggingface.co/datasets/brain-bzh/reve-dataset`
-- Download script: `download_reve_dataset_clean.py`
+> REVE dataset source: <https://huggingface.co/datasets/brain-bzh/reve-dataset>
 
-The script supports three download modes:
+## Repository structure
 
-1. `small`: download a predefined small subset for quick tests and debugging.
-2. `indices`: download selected recording IDs.
-3. `all`: download the full REVE dataset repository.
+```text
+.
+├── configs/
+│   └── train_vibe_spike.yaml          # Training configuration
+├── data/
+│   └── build_train_val_dataloader.py  # REVE-style dataloader utilities
+├── models/
+│   └── ...                            # Vibe-Spike model components
+├── utils/
+│   └── ...                            # Utility functions
+├── download_reve_dataset.py           # REVE dataset download helper
+├── train_vibe_spike.py                # Main pretraining script
+├── requirements.txt                   # Python dependencies excluding PyTorch
+└── setup_env.sh                       # Example environment setup script
+```
+
+Large datasets, model checkpoints, logs, and generated outputs should not be committed to this repository.
 
 ## Installation
 
-Install the required Python package:
+Create and activate a virtual environment:
 
 ```bash
-pip install huggingface_hub
+python -m venv .venv
+source .venv/bin/activate
 ```
 
-If the dataset requires authentication in your environment, log in to Hugging Face first:
+On Windows PowerShell, activate the environment with:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+Install PyTorch according to your CUDA version. For example, for CUDA 12.8:
 
 ```bash
-huggingface-cli login
+python -m pip install --upgrade pip setuptools wheel
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 ```
 
-Alternatively, pass a token directly with `--token`.
-
-## Quick Start
-
-### 1. Download the small subset
-
-Use this mode for testing the data loader or checking the directory structure.
+Then install the remaining dependencies:
 
 ```bash
-python download_reve_dataset.py \
-  --mode small \
-  --output-dir ./reve_dataset_small
+pip install -r requirements.txt
 ```
 
-This downloads the predefined small subset used by the script, including EEG data, electrode positions, statistics files, and metadata CSV files.
+The provided `setup_env.sh` contains the same basic setup flow and can be adapted to your system.
 
-### 2. Download selected recordings
+## Download the REVE dataset
 
-Use this mode when only specific recording indices are needed.
+The downloader preserves the relative paths used in the Hugging Face dataset repository. Therefore, `--output-dir` should be the **dataset root directory**, not the internal `data/` subfolder.
+
+For a quick test, download the small subset:
+
+```bash
+python download_reve_dataset.py --mode small --output-dir ./reve_dataset
+```
+
+Expected local layout:
+
+```text
+reve_dataset/
+├── data/
+│   ├── recording_-_eeg_-_74.npy
+│   ├── recording_-_eeg_-_79.npy
+│   └── recording_-_eeg_-_80.npy
+├── positions/
+│   ├── recording_-_positions_-_74.npy
+│   ├── recording_-_positions_-_79.npy
+│   └── recording_-_positions_-_80.npy
+├── stats/
+│   ├── recording_-_stats_-_74.npy
+│   ├── recording_-_stats_-_79.npy
+│   └── recording_-_stats_-_80.npy
+└── csv_recordings/
+    ├── df_big.csv
+    ├── df_corrected.csv
+    └── df_stats.csv or df_stats_tmp.csv
+```
+
+Do **not** use `--output-dir ./data` unless you intentionally want a nested layout such as `data/data/`.
+
+### Download modes
+
+Download a small subset for testing:
+
+```bash
+python download_reve_dataset.py --mode small --output-dir ./reve_dataset
+```
+
+Download selected recording IDs:
 
 ```bash
 python download_reve_dataset.py \
   --mode indices \
   --indices 82 121 127 145 \
-  --output-dir ./reve_dataset_subset
+  --output-dir ./reve_dataset
 ```
 
-For each requested recording index, the script attempts to download:
-
-- `recording_-_eeg_-_<ID>.npy`
-- `recording_-_positions_-_<ID>.npy`
-- `recording_-_stats_-_<ID>.npy`
-- available metadata CSV files
-
-### 3. Download the full REVE dataset
-
-Use this mode to download all files in the Hugging Face dataset repository.
+Download the full REVE repository:
 
 ```bash
-python download_reve_dataset.py \
-  --mode all \
-  --output-dir ./reve_dataset_all
+python download_reve_dataset.py --mode all --output-dir ./reve_dataset
 ```
 
-The full dataset is large. Make sure the target disk has sufficient free space before running this command.
-
-## Optional Arguments
+Optional arguments:
 
 ```bash
 python download_reve_dataset.py \
   --mode small \
-  --output-dir ./reve_dataset_small \
-  --max-workers 8
+  --output-dir ./reve_dataset \
+  --max-workers 8 \
+  --token YOUR_HF_TOKEN
 ```
 
-Available arguments:
+## Configure the dataset path
 
-| Argument | Description | Default |
-|---|---|---|
-| `--mode` | Download mode: `small`, `indices`, or `all`. | Required |
-| `--output-dir` | Local directory for downloaded files. | `reve_dataset` |
-| `--repo-id` | Hugging Face dataset repository ID. | `brain-bzh/reve-dataset` |
-| `--indices` | Recording IDs used when `--mode indices` is selected. | `None` |
-| `--max-workers` | Number of parallel download workers. | `8` |
-| `--token` | Optional Hugging Face access token. | `None` |
+After downloading the dataset, set the dataloader path in `configs/train_vibe_spike.yaml` to the dataset root:
 
-## Python API Usage
-
-The script can also be imported as a Python module.
-
-### Download the small subset
-
-```python
-from download_reve_dataset import demo_download_small
-
-demo_download_small(output_dir="./reve_dataset_small")
+```yaml
+dataloader:
+  path: reve_dataset
 ```
 
-### Download the full dataset
+The path should point to the directory that contains `data/`, `positions/`, `stats/`, and the metadata CSV files or `csv_recordings/`.
 
-```python
-from download_reve_dataset import demo_download_all
+## Pretraining
 
-demo_download_all(output_dir="./reve_dataset_all")
+Launch pretraining with:
+
+```bash
+python train_vibe_spike.py
 ```
 
-### Download selected indices
-
-```python
-from download_reve_dataset import download_reve_dataset
-
-download_reve_dataset(
-    output_dir="./reve_dataset_subset",
-    mode="indices",
-    indices=[82, 121, 127, 145],
-)
-```
-
-## Expected Output Structure
-
-The exact directory structure follows the Hugging Face repository layout. Depending on the selected mode, the downloaded directory may include files such as:
+The script loads:
 
 ```text
-reve_dataset_small/
-├── csv_recordings/
-│   ├── df_big.csv
-│   ├── df_corrected.csv
-│   ├── df_stats.csv
-│   └── df_stats_tmp.csv
-├── recordings/
-│   ├── recording_-_eeg_-_72.npy
-│   └── ...
-├── positions/
-│   ├── recording_-_positions_-_72.npy
-│   └── ...
-└── stats/
-    ├── recording_-_stats_-_72.npy
-    └── ...
+configs/train_vibe_spike.yaml
+```
+
+The training pipeline uses Accelerate, builds train loaders through `data.build_train_val_dataloader.get_train_val_loaders`, loads target montage coordinates from the configured Excel file, and trains `VibeSpikePretrainTask` with the configured optimizer, scheduler, masking, and checkpoint settings.
+
+For multi-GPU training, configure Accelerate first and then launch:
+
+```bash
+accelerate config
+accelerate launch train_vibe_spike.py
+```
+
+Training logs and checkpoints are written to the directory specified by:
+
+```yaml
+save:
+  dir: ckpt
+  name: vibe-spike
+```
+
+Typical outputs include:
+
+```text
+step_metrics.csv
+epoch_metrics.csv
+*_step_XXXXXXXX.pt
+*_epoch_XXXX.pt
+*_last.pt
+*_final_task.pt
+*_final_model.pt
 ```
 
 ## Notes
 
-- The `small` mode is intended for quick testing and does not represent the full dataset.
-- The `all` mode downloads the complete Hugging Face dataset repository and may require substantial storage.
-- The script uses `huggingface_hub.snapshot_download` internally, so previously downloaded files are cached by Hugging Face and reused when possible.
-- If download fails due to authentication or network issues, verify your Hugging Face login status or provide `--token`.
-
-## Citation / Dataset Acknowledgement
-
-If you use REVE in your work, please cite the original REVE dataset/model source and follow the usage terms provided on the Hugging Face dataset page:
-
-```text
-https://huggingface.co/datasets/brain-bzh/reve-dataset
-```
+- The `small` download mode is intended for code-path testing only.
+- Full REVE pretraining requires substantially more disk space and compute resources.
+- Dataset files, checkpoints, and generated outputs should be excluded from Git.
+- If only metadata CSV files are downloaded, the dataloader will not be able to construct training samples until the corresponding EEG, position, and statistics files are available.
