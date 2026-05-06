@@ -1,0 +1,53 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs and outputs
+logs/
+wandb/
+runs/
+outputs/
+ckpt_out*/
+checkpoints/
+*.log
+
+# Model checkpoints
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# Large data files
+*.npy
+*.npz
+*.h5
+*.hdf5
+*.mat
+*.edf
+*.fif
+*.csv
+*.tsv
+*.parquet
+*.pkl
+*.pickle
+*.lmdb
+*.mdb
+*.lock
+
+# Ignore everything inside data/
+data/**
+
+# But keep data/ folders and Python scripts inside data/
+!data/**/
+!data/**/*.py

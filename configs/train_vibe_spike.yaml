@@ -1,0 +1,99 @@
+seed: 42
+device: auto
+
+dataloader:
+  path: "reve_dataset/"
+  subset: all
+  loader:
+    num_workers: 4
+    prefetch_factor: 2
+    trainer_batch_size: 100
+
+preprocessing:
+  window_duration: 2000
+  clip: 15.0
+  masking:
+    use_block: true
+    masking_window: 200
+    masking_overlap: 20
+    ratio: 0.25
+    radius_spat_mask: 0.03
+    radius_temp_mask: 3
+    dropout_ratio: 0.10
+    dropout_radius: 0.04
+
+model:
+  target_coords_path: "Montage/19_standard_1020_coords.xlsx" 
+
+  num_channels: 19
+  sample_rate: 100
+  n_fft: 128
+  win_length: 128
+  hop_length: 16
+  min_freq_hz: 0.0
+  max_freq_hz: 45.0
+  proj_dim: 128
+  stem_kernel_sizes: [3, 5, 9]
+  stem_dropout: 0.10
+  s2_out_dim: 128
+  num_s2_layers: 1
+  osc_dim: 2
+  is_input_encode: true
+  encoder_hidden_dim: 32
+  k: 1.0
+  dt: 1.0
+  phase_delay_steps: 1
+  low_n: 0.0
+  high_n: 4.0
+  branch: 8
+  low_m: 0.0
+  high_m: 4.0
+  vth_snn: 0.50
+  dendritic_branch_constraint: false
+  mem_input: false
+  vth_readout: 0.50
+  graph_diag_value: 0.5
+  decoder_hidden: 256
+  decoder_dropout: 0.00
+  use_decoder_block_token: true
+
+graph:
+  type: "internal_correlation_from_proj_x"
+
+optimizer:
+  lr: 3.0e-4
+  weight_decay: 1.0e-3
+  betas: [0.9, 0.99]
+  eps: 1.0e-8
+
+train:
+  max_epochs: 80
+  grad_clip: 1.0
+  use_amp: false
+  accumulate_grad_batches: 1
+  use_input_masking: false
+  mask_fill_value: 0.0
+  zero_dropout_for_debug: false
+  log_every_steps: 50
+
+  train_channel_dropout: 0.0
+  train_time_mask_p: 0.10
+  train_time_mask_ratio: 0.05
+  train_noise_std: 0.01
+
+loss:
+  target_masked_weight: 1.0
+  consistency_weight: 0.0
+
+scheduler:
+  name: "WarmupStableDecay"
+  warmup_steps: 5000
+  stable_steps: 0
+  min_lr: 1.0e-5
+
+save:
+  dir: "ckpt"
+  name: "VibeSpike"
+  save_every_steps: 2000
+  save_every_epochs: 1
+  save_last: true
